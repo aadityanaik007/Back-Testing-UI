@@ -3,6 +3,7 @@
 This project is a Next.js + TypeScript frontend for the Backtest-UI application.
 
 ## Prerequisites
+
 - Node.js (v18 or higher recommended)
 - npm (comes with Node.js)
 
@@ -11,6 +12,7 @@ This project is a Next.js + TypeScript frontend for the Backtest-UI application.
 1. **Install dependencies**
 
    Open a terminal in the project root and run:
+
    ```powershell
    npm install
    ```
