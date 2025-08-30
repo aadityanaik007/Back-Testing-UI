@@ -2,6 +2,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
+import { TradingViewIframe } from "../components/TradingViewChart";
+import { useDashboardStats } from "../hooks/useDashboardStats";
 
 type TabType = "weekly-monthly" | "monthly-only" | "stocks";
 
@@ -370,6 +372,11 @@ function StocksContent() {
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("weekly-monthly");
   const { user, logout, isAuthenticated } = useAuth();
+  const {
+    stats,
+    loading: statsLoading,
+    error: statsError,
+  } = useDashboardStats();
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -377,10 +384,30 @@ export default function Home() {
       <nav className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h2 className="text-xl font-bold text-gray-900">
+            <div className="flex items-center space-x-8">
+              <Link href="/" className="text-xl font-bold text-gray-900">
                 Options Backtester
-              </h2>
+              </Link>
+              <div className="hidden md:flex space-x-8">
+                <Link
+                  href="/"
+                  className="text-blue-600 font-medium border-b-2 border-blue-600"
+                >
+                  Backtest
+                </Link>
+                <Link
+                  href="/strategies"
+                  className="text-gray-700 hover:text-blue-600 font-medium"
+                >
+                  Strategies
+                </Link>
+                <Link
+                  href="/charts"
+                  className="text-gray-700 hover:text-blue-600 font-medium"
+                >
+                  Charts
+                </Link>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
               {isAuthenticated ? (
@@ -478,27 +505,133 @@ export default function Home() {
 
             {/* Right Column */}
             <div className="space-y-6">
+              {/* Market Overview */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Market Overview
+                  </h2>
+                  <Link
+                    href="/charts"
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    View All Charts →
+                  </Link>
+                </div>
+                <div className="mb-4">
+                  <TradingViewIframe
+                    symbol="NSE:NIFTY"
+                    height={200}
+                    theme="light"
+                  />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">NIFTY 50 - Live Chart</p>
+                </div>
+              </div>
+
               {/* Results Section */}
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold mb-4 text-gray-800">
-                  Results
-                </h2>
-                <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded">
-                    <p className="text-sm text-gray-600 mb-2">Net Profit</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      +₹25,000
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded">
-                    <p className="text-sm text-gray-600 mb-2">Total Trades</p>
-                    <p className="text-lg font-semibold text-gray-800">156</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded">
-                    <p className="text-sm text-gray-600 mb-2">Win Rate</p>
-                    <p className="text-lg font-semibold text-blue-600">68.5%</p>
-                  </div>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Dashboard Stats
+                  </h2>
+                  {isAuthenticated && (
+                    <Link
+                      href="/strategies"
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Manage Strategies →
+                    </Link>
+                  )}
                 </div>
+
+                {!isAuthenticated ? (
+                  <div className="text-center py-6">
+                    <p className="text-gray-600 mb-4">
+                      Sign in to view your trading statistics
+                    </p>
+                    <Link
+                      href="/login"
+                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    >
+                      Sign In
+                    </Link>
+                  </div>
+                ) : statsLoading ? (
+                  <div className="text-center py-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="text-gray-600 mt-2">Loading stats...</p>
+                  </div>
+                ) : statsError ? (
+                  <div className="text-center py-6 text-red-600">
+                    <p>Failed to load stats: {statsError}</p>
+                  </div>
+                ) : stats ? (
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 p-4 rounded">
+                      <p className="text-sm text-gray-600 mb-2">Total P&L</p>
+                      <p
+                        className={`text-2xl font-bold ${
+                          stats.total_pnl >= 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        ₹{stats.total_pnl.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded">
+                      <p className="text-sm text-gray-600 mb-2">
+                        Total Strategies
+                      </p>
+                      <p className="text-lg font-semibold text-gray-800">
+                        {stats.total_strategies}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded">
+                      <p className="text-sm text-gray-600 mb-2">
+                        Backtests Run
+                      </p>
+                      <p className="text-lg font-semibold text-gray-800">
+                        {stats.total_backtests}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded">
+                      <p className="text-sm text-gray-600 mb-2">Avg Win Rate</p>
+                      <p className="text-lg font-semibold text-blue-600">
+                        {stats.avg_win_rate.toFixed(1)}%
+                      </p>
+                    </div>
+                    {stats.best_strategy && (
+                      <div className="bg-green-50 p-4 rounded">
+                        <p className="text-sm text-gray-600 mb-2">
+                          Best Strategy
+                        </p>
+                        <p className="font-semibold text-gray-800">
+                          {stats.best_strategy.name}
+                        </p>
+                        <p className="text-sm text-green-600">
+                          ₹{stats.best_strategy.pnl.toLocaleString()} (
+                          {stats.best_strategy.win_rate.toFixed(1)}% WR)
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-gray-600 mb-4">
+                      No data available. Create your first strategy to get
+                      started!
+                    </p>
+                    <Link
+                      href="/strategies"
+                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    >
+                      Create Strategy
+                    </Link>
+                  </div>
+                )}
               </div>
 
               {/* Quick Settings */}

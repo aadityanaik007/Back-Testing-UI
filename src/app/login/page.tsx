@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
 
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, error: authError } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,9 +43,9 @@ export default function LoginPage() {
         <div className="bg-white rounded-lg shadow-lg p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Error Message */}
-            {error && (
+            {(error || authError) && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-                {error}
+                {error || authError}
               </div>
             )}
 

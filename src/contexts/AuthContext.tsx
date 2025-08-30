@@ -1,10 +1,13 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { authAPI, User as APIUser, ApiError } from "../services/api";
 
 interface User {
-  id: string;
+  id: number;
   email: string;
   name: string;
+  created_at: string;
+  is_active: boolean;
 }
 
 interface AuthContextType {
@@ -14,13 +17,12 @@ interface AuthContextType {
   signup: (userData: SignupData) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  error: string | null;
 }
 
 interface SignupData {
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
-  phone: string;
   password: string;
 }
 
@@ -29,33 +31,48 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check for saved user session on app load
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    const initializeAuth = async () => {
+      const token = localStorage.getItem("access_token");
+      if (token) {
+        try {
+          const userData = await authAPI.getCurrentUser();
+          setUser(userData);
+        } catch (error) {
+          // Token might be expired or invalid
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("user");
+        }
+      }
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
+    setError(null);
+
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await authAPI.login({ email, password });
+      localStorage.setItem("access_token", response.access_token);
 
-      // Mock successful login
-      const mockUser = {
-        id: "1",
-        email,
-        name: email.split("@")[0],
-      };
-
-      setUser(mockUser);
-      localStorage.setItem("user", JSON.stringify(mockUser));
+      // Get user details
+      const userData = await authAPI.getCurrentUser();
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
     } catch (error) {
-      throw new Error("Login failed");
+      if (error instanceof ApiError) {
+        setError(error.message);
+        throw new Error(error.message);
+      } else {
+        setError("Login failed. Please try again.");
+        throw new Error("Login failed");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -63,29 +80,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = async (userData: SignupData) => {
     setIsLoading(true);
+    setError(null);
+
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const newUser = await authAPI.signup(userData);
 
-      // Mock successful signup
-      const mockUser = {
-        id: "1",
-        email: userData.email,
-        name: `${userData.firstName} ${userData.lastName}`,
-      };
-
-      setUser(mockUser);
-      localStorage.setItem("user", JSON.stringify(mockUser));
+      // After successful signup, log the user in
+      await login(userData.email, userData.password);
     } catch (error) {
-      throw new Error("Signup failed");
+      if (error instanceof ApiError) {
+        setError(error.message);
+        throw new Error(error.message);
+      } else {
+        setError("Signup failed. Please try again.");
+        throw new Error("Signup failed");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
+  const logout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      // Even if logout fails on server, clear local state
+      console.warn("Logout API call failed:", error);
+    } finally {
+      setUser(null);
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+    }
   };
 
   const value = {
@@ -95,6 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signup,
     logout,
     isAuthenticated: !!user,
+    error,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
