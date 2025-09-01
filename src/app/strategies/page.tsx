@@ -84,7 +84,7 @@ export default function StrategiesPage() {
     }
   };
 
-  const handleDeleteStrategy = async (id: number) => {
+  const handleDeleteStrategy = async (id: string) => {
     if (confirm("Are you sure you want to delete this strategy?")) {
       try {
         await strategyAPI.deleteStrategy(id);
