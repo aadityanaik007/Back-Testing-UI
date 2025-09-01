@@ -22,7 +22,7 @@ export interface SignupData {
 }
 
 export interface Strategy {
-  id: number;
+  id: string;
   name: string;
   description: string | null;
   config: Record<string, any>;
@@ -44,8 +44,8 @@ export interface StrategyUpdate {
 }
 
 export interface BacktestResult {
-  id: number;
-  strategy_id: number;
+  id: string;
+  strategy_id: string;
   total_trades: number;
   winning_trades: number;
   losing_trades: number;
@@ -67,7 +67,7 @@ export interface DashboardStats {
     win_rate: number;
   } | null;
   recent_results: Array<{
-    id: number;
+    id: string;
     strategy_name: string;
     total_pnl: number;
     win_rate: number;
@@ -162,24 +162,24 @@ export const strategyAPI = {
     return makeRequest("/strategies");
   },
 
-  async getStrategy(id: number): Promise<Strategy> {
+  async getStrategy(id: string): Promise<Strategy> {
     return makeRequest(`/strategies/${id}`);
   },
 
-  async updateStrategy(id: number, updates: StrategyUpdate): Promise<Strategy> {
+  async updateStrategy(id: string, updates: StrategyUpdate): Promise<Strategy> {
     return makeRequest(`/strategies/${id}`, {
       method: "PUT",
       body: JSON.stringify(updates),
     });
   },
 
-  async deleteStrategy(id: number): Promise<{ message: string }> {
+  async deleteStrategy(id: string): Promise<{ message: string }> {
     return makeRequest(`/strategies/${id}`, {
       method: "DELETE",
     });
   },
 
-  async duplicateStrategy(id: number, newName: string): Promise<Strategy> {
+  async duplicateStrategy(id: string, newName: string): Promise<Strategy> {
     return makeRequest(
       `/strategies/${id}/duplicate?new_name=${encodeURIComponent(newName)}`,
       {
@@ -225,7 +225,7 @@ export const backtestAPI = {
     return makeRequest("/backtest-results");
   },
 
-  async getResult(id: number): Promise<any> {
+  async getResult(id: string): Promise<any> {
     return makeRequest(`/backtest-results/${id}`);
   },
 
@@ -243,7 +243,7 @@ export const backtestAPI = {
   },
 
   async runBacktestForStrategy(
-    strategyId: number,
+    strategyId: string,
     data: {
       start_date: string;
       end_date: string;

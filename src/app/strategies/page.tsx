@@ -1,23 +1,37 @@
 "use client";
-import { useState, useEffect } from "react";
-import Link from "next/link";
+
 import { useAuth } from "../../contexts/AuthContext";
-import { strategyAPI, Strategy, ApiError } from "../../services/api";
+import { useEffect, useState } from "react";
+import { strategyAPI, ApiError, Strategy } from "../../services/api";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import Header from "../../components/Header";
+
+interface Filter {
+  indicatorA: string;
+  valueA: string;
+  sign: string;
+  indicatorB: string;
+  valueB: string;
+}
+
+interface Config {
+  timeFrame: string;
+  filters: Filter[];
+}
 
 export default function StrategiesPage() {
   const { user, isAuthenticated } = useAuth();
+  const router = useRouter();
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
-
-  // Form states
-  const [newStrategy, setNewStrategy] = useState({
+  const [newStrategyInfo, setNewStrategyInfo] = useState({
     name: "",
     description: "",
-    config: {},
   });
 
   // Load strategies on component mount
@@ -53,22 +67,6 @@ export default function StrategiesPage() {
     }
   };
 
-  const handleCreateStrategy = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await strategyAPI.createStrategy(newStrategy);
-      setShowCreateModal(false);
-      setNewStrategy({ name: "", description: "", config: {} });
-      loadStrategies();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Failed to create strategy");
-      }
-    }
-  };
-
   const handleCreateFromTemplate = async (
     templateName: string,
     strategyName: string
@@ -101,39 +99,52 @@ export default function StrategiesPage() {
     }
   };
 
-  const handleDuplicateStrategy = async (id: number, currentName: string) => {
-    const newName = prompt(
-      "Enter name for the duplicated strategy:",
-      `Copy of ${currentName}`
-    );
-    if (newName) {
-      try {
-        await strategyAPI.duplicateStrategy(id, newName);
-        loadStrategies();
-      } catch (err) {
-        if (err instanceof ApiError) {
-          setError(err.message);
-        } else {
-          setError("Failed to duplicate strategy");
-        }
-      }
+  const handleCreateNewStrategy = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newStrategyInfo.name.trim()) {
+      // Navigate to create page with the name and description as URL params
+      const params = new URLSearchParams({
+        name: newStrategyInfo.name,
+        description: newStrategyInfo.description,
+      });
+      router.push(`/strategies/create?${params.toString()}`);
+      setShowCreateModal(false);
+      setNewStrategyInfo({ name: "", description: "" });
     }
   };
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
-          <p className="text-gray-600 mb-4">
-            Please log in to manage your strategies.
-          </p>
-          <Link
-            href="/login"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Login
-          </Link>
+      <div className="min-h-screen bg-gray-100">
+        <Header activeTab="strategies" />
+        <div className="flex items-center justify-center py-12">
+          <div className="bg-white p-8 rounded-lg shadow-md text-center max-w-md">
+            <div className="text-gray-400 text-6xl mb-4">🔒</div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Authentication Required
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Please log in to view and manage your strategies.
+            </p>
+            <Link
+              href="/login"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition duration-200"
+            >
+              Login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <Header activeTab="strategies" />
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-gray-600 ml-4">Loading strategies...</p>
         </div>
       </div>
     );
@@ -141,67 +152,20 @@ export default function StrategiesPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Navigation Header */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-8">
-              <Link href="/" className="text-xl font-bold text-gray-900">
-                Options Backtester
-              </Link>
-              <div className="hidden md:flex space-x-8">
-                <Link
-                  href="/"
-                  className="text-gray-700 hover:text-blue-600 font-medium"
-                >
-                  Backtest
-                </Link>
-                <Link
-                  href="/strategies"
-                  className="text-blue-600 font-medium border-b-2 border-blue-600"
-                >
-                  Strategies
-                </Link>
-                <Link
-                  href="/charts"
-                  className="text-gray-700 hover:text-blue-600 font-medium"
-                >
-                  Charts
-                </Link>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                Welcome, {user?.name}
-              </span>
-              <Link
-                href="/"
-                className="text-sm text-gray-500 hover:text-gray-700"
-              >
-                Dashboard
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Header activeTab="strategies" />
 
       <div className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                My Strategies
-              </h1>
-              <p className="text-gray-600 mt-2">
-                Manage your trading strategies and configurations
-              </p>
-            </div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Your Strategies
+            </h1>
             <div className="flex space-x-4">
               <button
-                onClick={() => {
+                onClick={async () => {
+                  await loadTemplates();
                   setShowTemplateModal(true);
-                  loadTemplates();
                 }}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200"
               >
@@ -218,167 +182,119 @@ export default function StrategiesPage() {
 
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+              <div className="flex">
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Error</h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    <p>{error}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Loading */}
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-gray-600 mt-4">Loading strategies...</p>
-            </div>
-          ) : (
-            <>
-              {/* Strategies Grid */}
-              {strategies.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-gray-400 text-6xl mb-4">📊</div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No strategies yet
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    Create your first trading strategy to get started
-                  </p>
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-200"
+          {/* Strategies Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {strategies.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <div className="text-gray-400 text-6xl mb-4">📊</div>
+                <h3 className="text-xl font-medium text-gray-900 mb-2">
+                  No strategies yet
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Get started by creating your first trading strategy.
+                </p>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition duration-200"
+                >
+                  Create Your First Strategy
+                </button>
+              </div>
+            ) : (
+              strategies.map((strategy) => (
+                <div
+                  key={strategy.id}
+                  className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition duration-200"
+                >
+                  {/* Strategy Name and Description Section */}
+                  <div
+                    className="cursor-pointer mb-4 hover:bg-blue-50 p-3 rounded-lg transition duration-200 border-2 border-transparent hover:border-blue-200"
+                    onClick={() => router.push("/strategies/create")}
+                    title="Click to create a new strategy with similar configuration"
                   >
-                    Create Strategy
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {strategies.map((strategy) => (
-                    <div
-                      key={strategy.id}
-                      className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition duration-200"
-                    >
-                      <div className="flex justify-between items-start mb-4">
+                    <div className="border-l-4 border-blue-500 pl-4">
+                      <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xl font-semibold text-gray-900">
                           {strategy.name}
                         </h3>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() =>
-                              handleDuplicateStrategy(
-                                strategy.id,
-                                strategy.name
-                              )
-                            }
-                            className="text-gray-500 hover:text-blue-600"
-                            title="Duplicate"
-                          >
-                            📋
-                          </button>
-                          <button
-                            onClick={() => handleDeleteStrategy(strategy.id)}
-                            className="text-gray-500 hover:text-red-600"
-                            title="Delete"
-                          >
-                            🗑️
-                          </button>
-                        </div>
+                        <span className="text-xs text-gray-400 hover:text-blue-500">
+                          📝 Click to create new
+                        </span>
                       </div>
-
                       {strategy.description && (
-                        <p className="text-gray-600 mb-4 text-sm">
+                        <p className="text-gray-600 text-sm line-clamp-2">
                           {strategy.description}
                         </p>
                       )}
+                    </div>
+                  </div>
 
-                      <div className="space-y-2 mb-4">
-                        <div className="text-sm">
-                          <span className="font-medium">Created:</span>{" "}
-                          {new Date(strategy.created_at).toLocaleDateString()}
-                        </div>
-                        <div className="text-sm">
-                          <span className="font-medium">Updated:</span>{" "}
-                          {new Date(strategy.updated_at).toLocaleDateString()}
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex space-x-2">
+                      <Link
+                        href={`/strategies/${strategy.id}`}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteStrategy(strategy.id)}
+                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">Time Frame:</span>
+                        <div className="font-medium">
+                          {strategy.config?.timeFrame || "N/A"} min
                         </div>
                       </div>
-
-                      <div className="flex space-x-2">
-                        <Link
-                          href={`/strategies/${strategy.id}`}
-                          className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded hover:bg-blue-700 transition duration-200"
-                        >
-                          Edit
-                        </Link>
-                        <Link
-                          href={`/backtest?strategy=${strategy.id}`}
-                          className="flex-1 bg-green-600 text-white text-center py-2 px-3 rounded hover:bg-green-700 transition duration-200"
-                        >
-                          Run Test
-                        </Link>
+                      <div>
+                        <span className="text-gray-500">Filters:</span>
+                        <div className="font-medium">
+                          {strategy.config?.filters?.length || 0}
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+                  </div>
 
-      {/* Create Strategy Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Create New Strategy</h2>
-            <form onSubmit={handleCreateStrategy}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newStrategy.name}
-                    onChange={(e) =>
-                      setNewStrategy({ ...newStrategy, name: e.target.value })
-                    }
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        Updated{" "}
+                        {new Date(strategy.updated_at).toLocaleDateString()}
+                      </span>
+                      <Link
+                        href={`/strategies/${strategy.id}`}
+                        className="bg-blue-50 text-blue-600 px-3 py-1 rounded-md text-sm font-medium hover:bg-blue-100 transition duration-200"
+                      >
+                        View Details
+                      </Link>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description (Optional)
-                  </label>
-                  <textarea
-                    value={newStrategy.description}
-                    onChange={(e) =>
-                      setNewStrategy({
-                        ...newStrategy,
-                        description: e.target.value,
-                      })
-                    }
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-4 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  Create Strategy
-                </button>
-              </div>
-            </form>
+              ))
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Template Modal */}
       {showTemplateModal && (
@@ -417,6 +333,72 @@ export default function StrategiesPage() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create New Strategy Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Create New Strategy</h2>
+            <form onSubmit={handleCreateNewStrategy}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Strategy Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newStrategyInfo.name}
+                    onChange={(e) =>
+                      setNewStrategyInfo({
+                        ...newStrategyInfo,
+                        name: e.target.value,
+                      })
+                    }
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter strategy name"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    value={newStrategyInfo.description}
+                    onChange={(e) =>
+                      setNewStrategyInfo({
+                        ...newStrategyInfo,
+                        description: e.target.value,
+                      })
+                    }
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter strategy description"
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-4 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setNewStrategyInfo({ name: "", description: "" });
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Continue
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
