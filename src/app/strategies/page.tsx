@@ -33,6 +33,7 @@ export default function StrategiesPage() {
     name: "",
     description: "",
   });
+  const [creatingStrategy, setCreatingStrategy] = useState(false);
 
   // Load strategies on component mount
   useEffect(() => {
@@ -99,17 +100,40 @@ export default function StrategiesPage() {
     }
   };
 
-  const handleCreateNewStrategy = (e: React.FormEvent) => {
+  const handleCreateNewStrategy = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newStrategyInfo.name.trim()) {
-      // Navigate to create page with the name and description as URL params
-      const params = new URLSearchParams({
-        name: newStrategyInfo.name,
-        description: newStrategyInfo.description,
-      });
-      router.push(`/strategies/create?${params.toString()}`);
-      setShowCreateModal(false);
-      setNewStrategyInfo({ name: "", description: "" });
+      try {
+        setError(null);
+        setCreatingStrategy(true);
+
+        // Create strategy directly with the API
+        const strategy = {
+          name: newStrategyInfo.name.trim(),
+          description: newStrategyInfo.description.trim(),
+          config: {
+            timeFrame: 15, // Default timeframe
+            filters: [], // Empty filters array
+          },
+        };
+
+        await strategyAPI.createStrategy(strategy);
+
+        // Close modal and reset form
+        setShowCreateModal(false);
+        setNewStrategyInfo({ name: "", description: "" });
+
+        // Reload strategies to show the new one
+        loadStrategies();
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError("Failed to create strategy");
+        }
+      } finally {
+        setCreatingStrategy(false);
+      }
     }
   };
 
@@ -230,7 +254,7 @@ export default function StrategiesPage() {
                           {strategy.name}
                         </h3>
                         <span className="text-xs text-gray-400 hover:text-blue-500">
-                          📝 Click to create new
+                          📝 Click to Duplicate
                         </span>
                       </div>
                       {strategy.description && (
@@ -255,23 +279,180 @@ export default function StrategiesPage() {
                       >
                         Delete
                       </button>
+                      {/* Show Result button only if backtest is completed */}
+                      {strategy.backtest_completed && (
+                        <Link
+                          href={`/strategyresult/${strategy.id}`}
+                          className="text-green-600 hover:text-green-800 text-sm font-medium"
+                        >
+                          Result
+                        </Link>
+                      )}
                     </div>
                   </div>
 
                   <div className="border-t pt-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-500">Time Frame:</span>
-                        <div className="font-medium">
-                          {strategy.config?.timeFrame || "N/A"} min
+                    <div className="space-y-3 text-sm">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-gray-500">Time Frame:</span>
+                          <div className="font-medium">
+                            {strategy.config?.timeFrame || "N/A"} min
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Filters:</span>
+                          <div className="font-medium">
+                            {strategy.config?.filters?.length || 0}
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <span className="text-gray-500">Filters:</span>
-                        <div className="font-medium">
-                          {strategy.config?.filters?.length || 0}
+
+                      {/* Display individual filters if they exist */}
+                      {strategy.config?.filters &&
+                        strategy.config.filters.length > 0 && (
+                          <div className="mt-3">
+                            <span className="text-gray-500 text-xs">
+                              Filter Details:
+                            </span>
+                            <div className="mt-1 space-y-1">
+                              {strategy.config.filters.map(
+                                (filter: any, index: number) => (
+                                  <div
+                                    key={index}
+                                    className="text-xs bg-gray-50 p-2 rounded border-l-2 border-blue-200"
+                                  >
+                                    <span className="font-medium">
+                                      {filter.indicatorA}
+                                    </span>
+                                    <span className="mx-1">
+                                      ({filter.valueA})
+                                    </span>
+                                    <span className="mx-1 text-gray-600">
+                                      {filter.sign}
+                                    </span>
+                                    <span className="font-medium">
+                                      {filter.indicatorB}
+                                    </span>
+                                    <span className="mx-1">
+                                      ({filter.valueB})
+                                    </span>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                      {/* Show other config properties if they exist */}
+                      {(strategy.config?.index ||
+                        strategy.config?.expiry ||
+                        strategy.config?.legs?.length > 0) && (
+                        <div className="mt-3 space-y-3">
+                          {/* Basic strategy info */}
+                          {(strategy.config?.index ||
+                            strategy.config?.expiry) && (
+                            <div className="grid grid-cols-2 gap-4">
+                              {strategy.config?.index && (
+                                <div>
+                                  <span className="text-gray-500">Index:</span>
+                                  <div className="font-medium text-xs">
+                                    {strategy.config.index}
+                                  </div>
+                                </div>
+                              )}
+                              {strategy.config?.expiry && (
+                                <div>
+                                  <span className="text-gray-500">Expiry:</span>
+                                  <div className="font-medium text-xs">
+                                    {strategy.config.expiry}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Strategy duration and targets */}
+                          {(strategy.config?.strategyDuration ||
+                            strategy.config?.totalTarget ||
+                            strategy.config?.totalStopLoss) && (
+                            <div className="grid grid-cols-3 gap-2">
+                              {strategy.config?.strategyDuration && (
+                                <div>
+                                  <span className="text-gray-500 text-xs">
+                                    Duration:
+                                  </span>
+                                  <div className="font-medium text-xs">
+                                    {strategy.config.strategyDuration}
+                                  </div>
+                                </div>
+                              )}
+                              {strategy.config?.totalTarget > 0 && (
+                                <div>
+                                  <span className="text-gray-500 text-xs">
+                                    Target:
+                                  </span>
+                                  <div className="font-medium text-xs text-green-600">
+                                    {strategy.config.totalTarget}
+                                  </div>
+                                </div>
+                              )}
+                              {strategy.config?.totalStopLoss > 0 && (
+                                <div>
+                                  <span className="text-gray-500 text-xs">
+                                    SL:
+                                  </span>
+                                  <div className="font-medium text-xs text-red-600">
+                                    {strategy.config.totalStopLoss}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Display legs if they exist */}
+                          {strategy.config?.legs &&
+                            strategy.config.legs.length > 0 && (
+                              <div>
+                                <span className="text-gray-500 text-xs">
+                                  Legs ({strategy.config.legs.length}):
+                                </span>
+                                <div className="mt-1 space-y-1">
+                                  {strategy.config.legs
+                                    .slice(0, 2)
+                                    .map((leg: any, index: number) => (
+                                      <div
+                                        key={index}
+                                        className="text-xs bg-gradient-to-r from-blue-50 to-indigo-50 p-2 rounded border-l-2 border-indigo-300"
+                                      >
+                                        <div className="flex justify-between items-center">
+                                          <span className="font-medium text-indigo-800">
+                                            {leg.legSegmentName ||
+                                              `Leg ${index + 1}`}
+                                          </span>
+                                          <span className="text-indigo-600 text-xs">
+                                            {leg.segment} {leg.optionType}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between mt-1 text-gray-600">
+                                          <span>
+                                            {leg.position} {leg.strike}
+                                          </span>
+                                          <span>Lot: {leg.lotSize}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  {strategy.config.legs.length > 2 && (
+                                    <div className="text-xs text-gray-500 italic">
+                                      +{strategy.config.legs.length - 2} more
+                                      legs...
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
 
@@ -281,12 +462,22 @@ export default function StrategiesPage() {
                         Updated{" "}
                         {new Date(strategy.updated_at).toLocaleDateString()}
                       </span>
-                      <Link
-                        href={`/strategies/${strategy.id}`}
-                        className="bg-blue-50 text-blue-600 px-3 py-1 rounded-md text-sm font-medium hover:bg-blue-100 transition duration-200"
-                      >
-                        View Details
-                      </Link>
+                      <div className="flex space-x-2">
+                        <Link
+                          href={`/strategies/${strategy.id}`}
+                          className="bg-blue-50 text-blue-600 px-3 py-1 rounded-md text-sm font-medium hover:bg-blue-100 transition duration-200"
+                        >
+                          View Details
+                        </Link>
+                        {strategy.backtest_completed && (
+                          <Link
+                            href={`/strategyresult/${strategy.id}`}
+                            className="bg-green-50 text-green-600 px-3 py-1 rounded-md text-sm font-medium hover:bg-green-100 transition duration-200"
+                          >
+                            Result
+                          </Link>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -393,9 +584,10 @@ export default function StrategiesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  disabled={creatingStrategy}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400"
                 >
-                  Continue
+                  {creatingStrategy ? "Creating..." : "Create Strategy"}
                 </button>
               </div>
             </form>

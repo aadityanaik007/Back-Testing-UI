@@ -1,0 +1,31 @@
+export interface TradeResult {
+  signal_time: string;
+  entry_time: string;
+  entry_datetime: Date;
+  entry_price: number;
+  entry_spread: number;
+  entry_month: string;
+  vix_at_entry: number;
+  vix_at_entry_time: string;
+  indicator: string;
+  exit_datetime: Date;
+  exit_spread: number;
+  exit_price: number;
+  exit_reason: string;
+  sl_price: number;
+  price_difference: number;
+  pnl: number;
+  expiry: string;
+  opttype: string;
+  buy_leg_strike: number;
+  sell_leg_strike: number;
+  buy_leg_entry_price: number;
+  sell_leg_entry_price: number;
+  buy_leg_exit_price: number;
+  sell_leg_exit_price: number;
+  max_profit_time: Date;
+  max_profit_pnl: number;
+  min_profit_time: Date;
+  min_profit_pnl: number;
+  net_option_pnl?: number;
+}

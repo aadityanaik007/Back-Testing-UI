@@ -16,8 +16,7 @@ const SymbolSearch: React.FC<SymbolSearchProps> = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const filteredSymbols = useMemo(() => {
-    if (!searchTerm) return symbols.slice(0, 10); // Show first 10 by default
-
+    if (!searchTerm) return symbols.slice(0, 10);
     return symbols
       .filter(
         (symbol) =>
@@ -100,7 +99,7 @@ const SymbolSearch: React.FC<SymbolSearchProps> = ({
                   ))
                 ) : (
                   <div className="px-3 py-2 text-sm text-gray-500">
-                    No symbols found matching "{searchTerm}"
+                    No symbols found matching &quot;{searchTerm}&quot;
                   </div>
                 )}
               </div>

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { dashboardAPI, DashboardStats, ApiError } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -9,7 +9,7 @@ export function useDashboardStats() {
   const [error, setError] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     if (!isAuthenticated) {
       setStats(null);
       return;
@@ -29,11 +29,11 @@ export function useDashboardStats() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     loadStats();
-  }, [isAuthenticated]);
+  }, [loadStats]);
 
   return { stats, loading, error, refetch: loadStats };
 }

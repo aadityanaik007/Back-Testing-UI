@@ -29,6 +29,7 @@ export interface Strategy {
   created_at: string;
   updated_at: string;
   is_active: boolean;
+  backtest_completed: boolean;
 }
 
 export interface StrategyCreate {
@@ -94,24 +95,36 @@ async function makeRequest(
   const config: RequestInit = {
     headers: {
       "Content-Type": "application/json",
+      // Add development mode header for backend
+      "X-Dev-User": "testuser@example.com",
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
     ...options,
   };
 
+  console.log(`Making request to: ${API_BASE_URL}${endpoint}`, {
+    method: config.method || "GET",
+    headers: config.headers,
+  });
+
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
+    console.log(`Response status: ${response.status} for ${endpoint}`);
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(`API Error for ${endpoint}:`, errorData);
       throw new ApiError(
         errorData.detail || `HTTP error! status: ${response.status}`,
         response.status
       );
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log(`Success response for ${endpoint}:`, data);
+    return data;
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;
@@ -208,6 +221,14 @@ export const strategyAPI = {
         template_name: templateName,
         strategy_name: strategyName,
       }),
+    });
+  },
+
+  async runBacktest(
+    id: string
+  ): Promise<{ message: string; strategy_id: string }> {
+    return makeRequest(`/strategies/${id}/run-backtest`, {
+      method: "POST",
     });
   },
 };
