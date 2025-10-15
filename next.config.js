@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable standalone output for Docker
+  output: "standalone",
   env: {
     SKIP_AUTH_IN_DEV: process.env.SKIP_AUTH_IN_DEV,
   },
